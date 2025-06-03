@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>十二經絡養生時間旭日圖</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a2a3a 0%, #0a0e17 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #4ecdc4;
+            text-shadow: 0 0 15px rgba(78, 205, 196, 0.5);
+            font-size: 2.5em;
+        }
+        #chart-container {
+            width: 900px;
+            height: 900px;
+            margin: 0 auto;
+            background: rgba(26, 42, 58, 0.7);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            padding: 25px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(78, 205, 196, 0.3);
+        }
+        .tooltip {
+            position: absolute;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            border-radius: 10px;
+            pointer-events: none;
+            font-size: 14px;
+            box-shadow: 0 0 25px rgba(78, 205, 196, 0.4);
+            max-width: 350px;
+            border: 1px solid rgba(78, 205, 196, 0.3);
+            line-height: 1.7;
+            z-index: 100;
+        }
+        .legend-container {
+            margin-top: 30px;
+            width: 850px;
+            background: rgba(26, 42, 58, 0.7);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(78, 205, 196, 0.2);
+        }
+        .legend-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #4ecdc4;
+            font-size: 1.4em;
+            text-shadow: 0 0 10px rgba(78, 205, 196, 0.3);
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 10px;
+            font-size: 13px;
+            background: rgba(78, 205, 196, 0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(78, 205, 196, 0.3);
+            transition: all 0.3s;
+        }
+        .legend-item:hover {
+            background: rgba(78, 205, 196, 0.2);
+            transform: translateY(-3px);
+        }
+        .legend-color {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            border-radius: 50%;
+            box-shadow: 0 0 8px currentColor;
+        }
+        .description {
+            max-width: 800px;
+            margin: 30px auto;
+            text-align: center;
+            line-height: 1.8;
+            color: #d1e8ff;
+            font-size: 1.1em;
+            background: rgba(26, 42, 58, 0.6);
+            padding: 25px;
+            border-radius: 15px;
+        }
+        .controls {
+            margin: 25px 0;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        button {
+            background: linear-gradient(to right, #4ecdc4, #38ada9);
+            border: none;
+            color: #1a1a2e;
+            padding: 12px 25px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 5px 20px rgba(56, 173, 169, 0.4);
+            font-size: 1em;
+        }
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(56, 173, 169, 0.6);
+        }
+        @media (max-width: 1000px) {
+            #chart-container, .legend-container {
+                width: 95%;
+                height: auto;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>十二經絡養生時間旭日圖</h1>
+    
+    <div class="controls">
+        <button id="zoom-in">放大</button>
+        <button id="zoom-out">縮小</button>
+        <button id="reset">重置視圖</button>
+    </div>
+    
+    <div id="chart-container"></div>
+    
+    <div class="description">
+        <p>此旭日圖展示中醫十二經絡對應的養生時間及其功能，外層環代表時間段，中層環代表經絡名稱，內層環展示各經絡的主要功能。區塊大小代表該時段的重要性。</p>
+    </div>
+    
+    <div class="legend-container">
+        <div class="legend-title">十二經絡時間分類圖例</div>
+        <div class="legend" id="legend"></div>
+    </div>
+
+    <script>
+        // 十二經絡養生時間數據
+        const meridianData = {
+            name: "十二經絡",
+            children: [
+                {
+                    name: "子時 23:00-01:00",
+                    children: [
+                        { name: "膽經", value: 90 },
+                        { name: "造血、血液淨化", value: 85 },
+                        { name: "消化作用", value: 80 }
+                    ]
+                },
+                {
+                    name: "丑時 01:00-03:00",
+                    children: [
+                        { name: "肝經", value: 95 },
+                        { name: "造血、消化吸收", value: 90 },
+                        { name: "調節血糖", value: 85 }
+                    ]
+                },
+                {
+                    name: "寅時 03:00-05:00",
+                    children: [
+                        { name: "肺經", value: 85 },
+                        { name: "呼吸、氣體交換", value: 80 },
+                        { name: "調節血液循環", value: 75 }
+                    ]
+                },
+                {
+                    name: "卯時 05:00-07:00",
+                    children: [
+                        { name: "大腸經", value: 80 },
+                        { name: "排泄、排毒功能", value: 75 },
+                        { name: "消化作用", value: 70 }
+                    ]
+                },
+                {
+                    name: "辰時 07:00-09:00",
+                    children: [
+                        { name: "胃經", value: 90 },
+                        { name: "消化作用", value: 85 },
+                        { name: "營養吸收", value: 80 }
+                    ]
+                },
+                {
+                    name: "巳時 09:00-11:00",
+                    children: [
+                        { name: "脾經", value: 85 },
+                        { name: "消化吸收作用", value: 80 },
+                        { name: "造血功能", value: 75 }
+                    ]
+                },
+                {
+                    name: "午時 11:00-13:00",
+                    children: [
+                        { name: "心經", value: 90 },
+                        { name: "調節血液循環", value: 85 },
+                        { name: "大腦皮層作用", value: 80 }
+                    ]
+                },
+                {
+                    name: "未時 13:00-15:00",
+                    children: [
+                        { name: "小腸經", value: 80 },
+                        { name: "消化吸收", value: 75 },
+                        { name: "營養分配", value: 70 }
+                    ]
+                },
+                {
+                    name: "申時 15:00-17:00",
+                    children: [
+                        { name: "膀胱經", value: 85 },
+                        { name: "泌尿系統", value: 80 },
+                        { name: "調節內臟機能", value: 75 }
+                    ]
+                },
+                {
+                    name: "酉時 17:00-19:00",
+                    children: [
+                        { name: "腎經", value: 90 },
+                        { name: "過濾及代謝功能", value: 85 },
+                        { name: "調節內分泌", value: 80 }
+                    ]
+                },
+                {
+                    name: "戌時 19:00-21:00",
+                    children: [
+                        { name: "心包經", value: 85 },
+                        { name: "調節血液循環", value: 80 },
+                        { name: "大腦皮層作用", value: 75 }
+                    ]
+                },
+                {
+                    name: "亥時 21:00-23:00",
+                    children: [
+                        { name: "三焦經", value: 80 },
+                        { name: "調節內臟機能", value: 75 },
+                        { name: "大腦皮層神經", value: 70 }
+                    ]
+                }
+            ]
+        };
+
+        // 設置旭日圖尺寸
+        const width = 850;
+        const height = 850;
+        const radius = Math.min(width, height) / 2;
+        
+        // 創建顏色比例尺
+        const color = d3.scaleOrdinal()
+            .domain(["子時 23:00-01:00", "丑時 01:00-03:00", "寅時 03:00-05:00", "卯時 05:00-07:00", 
+                    "辰時 07:00-09:00", "巳時 09:00-11:00", "午時 11:00-13:00", "未時 13:00-15:00",
+                    "申時 15:00-17:00", "酉時 17:00-19:00", "戌時 19:00-21:00", "亥時 21:00-23:00"])
+            .range([
+                "#4ecdc4", "#38ada9", "#2d98a8", "#2283a7",
+                "#176ea6", "#0c59a5", "#0144a4", "#00308a",
+                "#001d70", "#000a56", "#00003c", "#0a0e17"
+            ]);
+
+        // 創建分區佈局
+        const partition = data => {
+            const root = d3.hierarchy(data)
+                .sum(d => d.value)
+                .sort((a, b) => b.value - a.value);
+            return d3.partition()
+                .size([2 * Math.PI, radius * 1.5])
+                (root);
+        };
+
+        // 創建弧生成器
+        const arc = d3.arc()
+            .startAngle(d => d.x0)
+            .endAngle(d => d.x1)
+            .padAngle(1 / radius)
+            .padRadius(radius / 2)
+            .innerRadius(d => d.y0)
+            .outerRadius(d => Math.max(d.y0, d.y1 - 1));
+
+        // 創建SVG容器
+        const svg = d3.select("#chart-container")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .attr("viewBox", [-width / 2, -height / 2, width, height]);
+
+        // 縮放控制
+        let currentTransform = d3.zoomIdentity;
+        
+        const zoom = d3.zoom()
+            .scaleExtent([0.5, 8])
+            .on("zoom", (event) => {
+                currentTransform = event.transform;
+                g.attr("transform", event.transform);
+            });
+            
+        svg.call(zoom);
+        
+        // 創建圖表組
+        const g = svg.append("g");
+        
+        // 處理數據並創建分區
+        const root = partition(meridianData);
+        
+        // 添加弧段
+        const path = g.append("g")
+            .selectAll("path")
+            .data(root.descendants().filter(d => d.depth))
+            .join("path")
+            .attr("fill", d => {
+                while (d.depth > 1) d = d.parent;
+                return color(d.data.name);
+            })
+            .attr("fill-opacity", 0.85)
+            .attr("stroke", "#fff")
+            .attr("stroke-width", 0.5)
+            .attr("d", arc)
+            .on("mouseover", function(event, d) {
+                d3.select(this)
+                    .attr("stroke-width", 2)
+                    .attr("stroke", "#4ecdc4")
+                    .raise();
+                
+                const tooltip = d3.select("body").append("div")
+                    .attr("class", "tooltip")
+                    .html(`<strong>${d.data.name}</strong><br>
+                           ${getMeridianDescription(d.data.name)}`)
+                    .style("left", `${event.pageX + 15}px`)
+                    .style("top", `${event.pageY + 15}px`);
+            })
+            .on("mouseout", function() {
+                d3.select(this)
+                    .attr("stroke-width", 0.5)
+                    .attr("stroke", "#fff");
+                d3.select(".tooltip").remove();
+            })
+            .on("click", (event, d) => {
+                focusOn(d);
+            });
+
+        // 添加文本標籤
+        const text = g.append("g")
+            .attr("pointer-events", "none")
+            .attr("text-anchor", "middle")
+            .attr("font-size", 11)
+            .attr("font-family", "Microsoft JhengHei")
+            .selectAll("text")
+            .data(root.descendants().filter(d => d.depth && (d.y0 + d.y1) / 2 * (d.x1 - d.x0) > 10))
+            .join("text")
+            .attr("transform", function(d) {
+                const x = (d.x0 + d.x1) / 2 * 180 / Math.PI;
+                const y = (d.y0 + d.y1) / 2;
+                return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`;
+            })
+            .attr("dy", "0.35em")
+            .text(d => d.data.name)
+            .attr("fill", "#fff")
+            .style("font-size", d => {
+                const depthScale = d3.scaleLinear()
+                    .domain([1, 3])
+                    .range([14, 10])
+                    .clamp(true);
+                return `${depthScale(d.depth)}px`;
+            })
+            .style("font-weight", d => d.depth === 1 ? "bold" : "normal")
+            .style("text-shadow", "0 0 5px rgba(0,0,0,0.8)");
+
+        // 添加中心標題
+        g.append("text")
+            .attr("text-anchor", "middle")
+            .attr("dy", "0.35em")
+            .attr("font-size", "24px")
+            .attr("font-weight", "bold")
+            .attr("fill", "#4ecdc4")
+            .style("text-shadow", "0 0 15px rgba(78, 205, 196, 0.5)")
+            .text("十二經絡");
+
+        // 經絡描述函數
+        function getMeridianDescription(name) {
+            const descriptions = {
+                "膽經": "造血、血液淨化、消化作用",
+                "肝經": "造血、消化吸收、調節血糖",
+                "肺經": "呼吸、氣體交換、調節血液循環",
+                "大腸經": "排泄、排毒功能、消化作用",
+                "胃經": "消化作用、營養吸收",
+                "脾經": "消化吸收作用、造血功能",
+                "心經": "調節血液循環、大腦皮層作用",
+                "小腸經": "消化吸收、營養分配",
+                "膀胱經": "泌尿系統、調節內臟機能",
+                "腎經": "過濾及代謝功能、調節內分泌",
+                "心包經": "調節血液循環、大腦皮層作用",
+                "三焦經": "調節內臟機能、大腦皮層神經"
+            };
+            return descriptions[name] || "中醫經絡系統重要組成部分";
+        }
+
+        // 聚焦功能
+        function focusOn(d) {
+            const x = (d.x0 + d.x1) / 2 * 180 / Math.PI;
+            const y = (d.y0 + d.y1) / 2;
+            const scale = 2.5;
+            
+            currentTransform = d3.zoomIdentity
+                .translate(width / 2, height / 2)
+                .scale(scale)
+                .translate(-x * scale, -y * scale);
+                
+            g.transition()
+                .duration(750)
+                .attr("transform", currentTransform);
+        }
+
+        // 創建圖例
+        const legend = d3.select("#legend");
+        
+        const legendItems = legend.selectAll(".legend-item")
+            .data(color.domain())
+            .enter()
+            .append("div")
+            .attr("class", "legend-item");
+            
+        legendItems.append("div")
+            .attr("class", "legend-color")
+            .style("background-color", d => color(d));
+            
+        legendItems.append("div")
+            .text(d => d);
+
+        // 按鈕功能
+        d3.select("#zoom-in").on("click", () => {
+            currentTransform = currentTransform.scale(1.3);
+            g.transition().attr("transform", currentTransform);
+        });
+        
+        d3.select("#zoom-out").on("click", () => {
+            currentTransform = currentTransform.scale(0.7);
+            g.transition().attr("transform", currentTransform);
+        });
+        
+        d3.select("#reset").on("click", () => {
+            currentTransform = d3.zoomIdentity;
+            g.transition().attr("transform", currentTransform);
+        });
+    </script>
+</body>
+</html>
