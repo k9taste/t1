@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>奇經八脈旭日圖</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        h1 {
+            color: #8b0000;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #555;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .chart-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 30px;
+            width: 900px;
+            max-width: 100%;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            pointer-events: none;
+            font-size: 14px;
+            max-width: 300px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+        .tooltip h3 {
+            margin-top: 0;
+            color: #8b0000;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 15px;
+        }
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            margin-right: 8px;
+            border-radius: 3px;
+        }
+        .description {
+            max-width: 800px;
+            line-height: 1.6;
+            color: #444;
+            text-align: justify;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>奇經八脈系統旭日圖</h1>
+    <div class="subtitle">中醫經絡系統可視化分析</div>
+    
+    <div class="chart-container">
+        <div id="sunburst-chart"></div>
+        <div class="legend" id="legend"></div>
+    </div>
+    
+    <div class="description">
+        <p>奇經八脈是中醫經絡系統中的重要組成部分，包括任脈、督脈、沖脈、帶脈、陰維脈、陽維脈、陰蹻脈和陽蹻脈。這些經脈不同於十二正經，它們不直接隸屬於臟腑，也無表裡配合關係，而是"別道奇行"的經脈，故稱"奇經"。</p>
+        <p>旭日圖展示了奇經八脈的層次結構和相互關係，內層為奇經八脈分類，中層為各脈的主要功能，外層為相關的經脈交會和生理作用。通過此可視化，我們可以直觀地理解中醫經絡系統的複雜結構和功能聯繫。</p>
+    </div>
+
+    <script>
+        // 模擬數據 - 奇經八脈系統
+        const data = {
+            name: "奇經八脈",
+            children: [
+                {
+                    name: "任脈",
+                    value: 15,
+                    description: "位於腹面正中線，有「陰脈之海」之稱。與手足三陰及陰維脈交會，主管一身之陰經。起於胞中，與女子妊娠有關，故稱「任主胞胎」。",
+                    color: "#8b0000",
+                    children: [
+                        {
+                            name: "陰脈之海",
+                            value: 5,
+                            description: "總任一身之陰經，所有陰經脈氣都匯聚於此。"
+                        },
+                        {
+                            name: "任主胞胎",
+                            value: 5,
+                            description: "與女子月經、妊娠密切相關，調節生殖功能。"
+                        },
+                        {
+                            name: "交會經脈",
+                            value: 5,
+                            description: "與足三陰經(肝、脾、腎)及陰維脈相交會。"
+                        }
+                    ]
+                },
+                {
+                    name: "督脈",
+                    value: 15,
+                    description: "位於背部正中線，有「陽脈之海」之稱。與手足三陽經及陽維脈交會，主管一身之陽經。行於脊里，上行入腦，並與腦、脊髓、腎有密切關係。",
+                    color: "#4169e1",
+                    children: [
+                        {
+                            name: "陽脈之海",
+                            value: 5,
+                            description: "總督一身之陽經，所有陽經脈氣都匯聚於此。"
+                        },
+                        {
+                            name: "入絡於腦",
+                            value: 5,
+                            description: "上行入腦，與中樞神經系統功能密切相關。"
+                        },
+                        {
+                            name: "交會經脈",
+                            value: 5,
+                            description: "與手三陽經(大腸、小腸、三焦)及陽維脈相交會。"
+                        }
+                    ]
+                },
+                {
+                    name: "沖脈",
+                    value: 12,
+                    description: "上至頭，下至足，貫穿全身，有「十二經脈之海」之稱，又稱「血海」。能調節十二經氣血，與婦女月經有關。",
+                    color: "#9370db",
+                    children: [
+                        {
+                            name: "十二經之海",
+                            value: 4,
+                            description: "調節十二經脈氣血，為氣血運行的要衝。"
+                        },
+                        {
+                            name: "血海",
+                            value: 4,
+                            description: "與婦女生殖系統和月經調節密切相關。"
+                        },
+                        {
+                            name: "貫穿全身",
+                            value: 4,
+                            description: "上行頭部，下行足部，分支遍佈全身。"
+                        }
+                    ]
+                },
+                {
+                    name: "帶脈",
+                    value: 8,
+                    description: "起於季脅，斜向下行到帶脈穴，繞身一周。能約束縱行的諸脈，像腰帶一樣。",
+                    color: "#2e8b57",
+                    children: [
+                        {
+                            name: "約束諸脈",
+                            value: 3,
+                            description: "約束縱行經脈，防止經氣外散。"
+                        },
+                        {
+                            name: "繞身一周",
+                            value: 3,
+                            description: "唯一橫向循行的經脈，如腰帶環繞。"
+                        },
+                        {
+                            name: "與肝膽相關",
+                            value: 2,
+                            description: "起於季脅部，與肝膽經絡關係密切。"
+                        }
+                    ]
+                },
+                {
+                    name: "陰維脈",
+                    value: 10,
+                    description: "有「維絡諸陰」的功能。循行於身體的陰面，與手足三陰經相交。",
+                    color: "#ff6347",
+                    children: [
+                        {
+                            name: "維絡諸陰",
+                            value: 4,
+                            description: "聯繫所有陰經，維持陰經系統的協調。"
+                        },
+                        {
+                            name: "調節內臟",
+                            value: 3,
+                            description: "與內臟功能特別是心肺功能相關。"
+                        },
+                        {
+                            name: "交會經脈",
+                            value: 3,
+                            description: "與足三陰經(肝、脾、腎)相交會。"
+                        }
+                    ]
+                },
+                {
+                    name: "陽維脈",
+                    value: 10,
+                    description: "有「維絡諸陽」的功能。循行於身體的陽面，與手足三陽經相交。",
+                    color: "#ffa500",
+                    children: [
+                        {
+                            name: "維絡諸陽",
+                            value: 4,
+                            description: "聯繫所有陽經，維持陽經系統的協調。"
+                        },
+                        {
+                            name: "調節體表",
+                            value: 3,
+                            description: "與體表防禦功能和體溫調節相關。"
+                        },
+                        {
+                            name: "交會經脈",
+                            value: 3,
+                            description: "與手三陽經(大腸、小腸、三焦)相交會。"
+                        }
+                    ]
+                },
+                {
+                    name: "陰蹻脈",
+                    value: 10,
+                    description: "有濡養眼目、司眼瞼開合和下肢運動的功能。有輕健蹺捷之意。",
+                    color: "#ba55d3",
+                    children: [
+                        {
+                            name: "司眼瞼開合",
+                            value: 4,
+                            description: "調節眼瞼運動，與睡眠和視覺功能相關。"
+                        },
+                        {
+                            name: "下肢運動",
+                            value: 3,
+                            description: "主司下肢運動功能，使人行走輕健。"
+                        },
+                        {
+                            name: "交會經脈",
+                            value: 3,
+                            description: "與足少陰腎經和足太陽膀胱經相交會。"
+                        }
+                    ]
+                },
+                {
+                    name: "陽蹻脈",
+                    value: 10,
+                    description: "有濡養眼目、司眼瞼開合和下肢運動的功能。有輕健蹺捷之意。",
+                    color: "#20b2aa",
+                    children: [
+                        {
+                            name: "濡養眼目",
+                            value: 4,
+                            description: "滋養眼睛，與視覺功能密切相關。"
+                        },
+                        {
+                            name: "調節運動",
+                            value: 3,
+                            description: "參與肢體運動協調，特別是下肢。"
+                        },
+                        {
+                            name: "交會經脈",
+                            value: 3,
+                            description: "與足太陽膀胱經和足少陽膽經相交會。"
+                        }
+                    ]
+                }
+            ]
+        };
+
+        // 設置旭日圖尺寸
+        const width = 800;
+        const height = 800;
+        const radius = Math.min(width, height) / 2 - 10;
+
+        // 創建SVG容器
+        const svg = d3.select("#sunburst-chart")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .append("g")
+            .attr("transform", `translate(${width/2},${height/2})`);
+
+        // 創建分層結構
+        const partition = data => {
+            const root = d3.hierarchy(data)
+                .sum(d => d.value)
+                .sort((a, b) => b.value - a.value);
+            return d3.partition()
+                .size([2 * Math.PI, root.height + 1])(root);
+        };
+
+        // 顏色比例尺
+        const color = d3.scaleOrdinal()
+            .domain(data.children.map(d => d.name))
+            .range(data.children.map(d => d.color));
+
+        // 處理數據
+        const root = partition(data);
+        
+        // 添加弧形
+        svg.append("g")
+            .selectAll("path")
+            .data(root.descendants().slice(1))
+            .join("path")
+            .attr("fill", d => {
+                while (d.depth > 1) d = d.parent;
+                return color(d.data.name);
+            })
+            .attr("fill-opacity", 0.8)
+            .attr("d", d3.arc()
+                .startAngle(d => d.x0)
+                .endAngle(d => d.x1)
+                .padAngle(0.01)
+                .padRadius(radius)
+                .innerRadius(d => d.y0 * radius)
+                .outerRadius(d => d.y1 * radius - 1)
+            )
+            .on("mouseover", function(event, d) {
+                const tooltip = d3.select(".tooltip");
+                if (!tooltip.node()) {
+                    d3.select("body").append("div")
+                        .attr("class", "tooltip")
+                        .style("opacity", 0);
+                }
+                
+                d3.select(".tooltip")
+                    .html(`<h3>${d.data.name}</h3><p>${d.data.description || "點擊查看更多細節"}</p>`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY + 10) + "px")
+                    .transition()
+                    .duration(200)
+                    .style("opacity", 1);
+                
+                d3.select(this).attr("fill-opacity", 1);
+            })
+            .on("mouseout", function() {
+                d3.select(".tooltip")
+                    .transition()
+                    .duration(200)
+                    .style("opacity", 0);
+                
+                d3.select(this).attr("fill-opacity", 0.8);
+            })
+            .on("click", function(event, d) {
+                // 點擊時可以添加更多交互功能
+                console.log(d);
+            });
+
+        // 添加文字標籤
+        svg.append("g")
+            .attr("pointer-events", "none")
+            .attr("text-anchor", "middle")
+            .attr("font-size", 10)
+            .attr("font-family", "Microsoft JhengHei")
+            .selectAll("text")
+            .data(root.descendants().filter(d => d.depth && (d.y0 + d.y1) / 2 * (d.x1 - d.x0) > 10))
+            .join("text")
+            .attr("transform", function(d) {
+                const x = (d.x0 + d.x1) / 2 * 180 / Math.PI;
+                const y = (d.y0 + d.y1) / 2 * radius;
+                return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`;
+            })
+            .attr("dy", "0.35em")
+            .text(d => d.data.name)
+            .style("fill", "white")
+            .style("font-weight", d => d.depth === 1 ? "bold" : "normal");
+
+        // 添加中心標題
+        svg.append("text")
+            .attr("text-anchor", "middle")
+            .attr("dy", ".35em")
+            .attr("font-size", "16px")
+            .attr("font-weight", "bold")
+            .attr("font-family", "Microsoft JhengHei")
+            .text("奇經八脈")
+            .style("fill", "#333");
+
+        // 創建圖例
+        const legend = d3.select("#legend");
+        
+        data.children.forEach(item => {
+            const legendItem = legend.append("div")
+                .attr("class", "legend-item");
+            
+            legendItem.append("div")
+                .attr("class", "legend-color")
+                .style("background-color", item.color);
+            
+            legendItem.append("div")
+                .text(item.name)
+                .style("font-family", "Microsoft JhengHei");
+        });
+    </script>
+</body>
+</html>
